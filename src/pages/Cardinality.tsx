@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3 } from "lucide-react";
 import { Treemap, ResponsiveContainer } from "recharts";
+import CardinalityMultiplierTree from "@/components/CardinalityMultiplierTree";
 
 export default function Cardinality() {
   const { connection } = useAppContext();
@@ -53,6 +54,9 @@ export default function Cardinality() {
           </CardContent>
         </Card>
       )}
+
+      {/* Multiplier Tree */}
+      <CardinalityMultiplierTree />
 
       {/* Top metrics table */}
       <Card>
