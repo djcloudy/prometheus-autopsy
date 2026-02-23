@@ -91,7 +91,7 @@ export default function CardinalityMultiplierTree() {
           Click a metric to drill down and see how labels multiply its series count.
         </p>
       </CardHeader>
-      <CardContent className="space-y-0.5">
+      <CardContent className="space-y-0.5 max-h-[60vh] overflow-y-auto">
         {topMetrics.map((m) => {
           const state = expanded[m.name];
           const isExpanded = !!state && state !== "loading" && state !== "error";
