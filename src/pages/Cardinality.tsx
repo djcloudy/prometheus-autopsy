@@ -40,7 +40,7 @@ export default function Cardinality() {
           <CardHeader>
             <CardTitle className="text-lg">Metric Family Impact</CardTitle>
           </CardHeader>
-          <CardContent className="h-80">
+          <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <Treemap
                 data={treemapData}
