@@ -7,7 +7,7 @@ import {
   PlayCircle,
   Shield,
   Timer,
-  Zap,
+  Skull,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -42,9 +42,9 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <Zap className="h-6 w-6 text-primary shrink-0" />
+          <Skull className="h-6 w-6 text-severity-critical shrink-0" />
           <span className="font-bold text-lg tracking-tight group-data-[collapsible=icon]:hidden">
-            Blacklight
+            Autopsy
           </span>
         </div>
       </SidebarHeader>

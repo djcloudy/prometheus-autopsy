@@ -15,7 +15,7 @@ import {
   removeConnection,
   type PrometheusConfig,
 } from "@/lib/prometheus";
-import { CheckCircle2, XCircle, Loader2, Link, Trash2, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Link, Trash2, Skull } from "lucide-react";
 
 export default function Connect() {
   const { setConnection } = useAppContext();
@@ -69,14 +69,32 @@ export default function Connect() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <Zap className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold tracking-tight">Prometheus Blacklight</h1>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          {/* Chalk outline body */}
+          <div className="relative shrink-0">
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-60">
+              <circle cx="28" cy="11" r="4" stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" strokeDasharray="3 2" fill="none" />
+              <path
+                d="M28 15 L28 30 M20 22 L36 22 M28 30 L20 46 M28 30 L36 46"
+                stroke="hsl(var(--muted-foreground))"
+                strokeWidth="1.5"
+                strokeDasharray="3 2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <Skull className="h-7 w-7 text-severity-critical" />
+              Prometheus Autopsy
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Forensic performance analyzer for Prometheus. Connect to your instance to begin the investigation.
+            </p>
+          </div>
         </div>
-        <p className="text-muted-foreground">
-          Forensic performance analyzer for Prometheus. Connect to your instance to begin analysis.
-        </p>
       </div>
 
       <Card>

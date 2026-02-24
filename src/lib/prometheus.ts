@@ -119,7 +119,7 @@ export async function healthCheck(config: PrometheusConfig): Promise<{
 }
 
 // Local storage persistence
-const STORAGE_KEY = "prometheus-blacklight-connections";
+const STORAGE_KEY = "prometheus-autopsy-connections";
 
 export function getSavedConnections(): PrometheusConfig[] {
   try {
