@@ -133,30 +133,40 @@ function TreemapCell(props: any) {
 
   const severity = size > 10_000 ? "critical" : size > 5_000 ? "moderate" : size > 1_000 ? "info" : "healthy";
   const fills: Record<string, string> = {
-    critical: "hsl(var(--severity-critical) / 0.55)",
-    moderate: "hsl(var(--severity-moderate) / 0.45)",
-    info: "hsl(var(--severity-info) / 0.35)",
-    healthy: "hsl(var(--severity-healthy) / 0.25)",
+    critical: "hsl(0 72% 35%)",
+    moderate: "hsl(38 80% 32%)",
+    info: "hsl(220 60% 30%)",
+    healthy: "hsl(142 50% 25%)",
   };
   const strokes: Record<string, string> = {
-    critical: "hsl(var(--severity-critical) / 0.8)",
-    moderate: "hsl(var(--severity-moderate) / 0.7)",
-    info: "hsl(var(--severity-info) / 0.6)",
-    healthy: "hsl(var(--severity-healthy) / 0.4)",
+    critical: "hsl(0 72% 50%)",
+    moderate: "hsl(38 80% 48%)",
+    info: "hsl(220 60% 45%)",
+    healthy: "hsl(142 50% 40%)",
   };
 
   return (
     <g>
       <rect x={x} y={y} width={width} height={height} fill={fills[severity]} stroke={strokes[severity]} strokeWidth={1.5} rx={4} />
       {width > 60 && height > 30 && (
-        <text x={x + 8} y={y + 18} fill="hsl(0 0% 100%)" fontSize={12} fontWeight={600} fontFamily="JetBrains Mono, monospace">
-          {name}
-        </text>
+        <>
+          <text x={x + 8} y={y + 19} fill="black" fontSize={12} fontWeight={700} fontFamily="JetBrains Mono, monospace" opacity={0.4}>
+            {name}
+          </text>
+          <text x={x + 8} y={y + 18} fill="white" fontSize={12} fontWeight={700} fontFamily="JetBrains Mono, monospace">
+            {name}
+          </text>
+        </>
       )}
       {width > 50 && height > 40 && (
-        <text x={x + 8} y={y + 34} fill="hsl(0 0% 100% / 0.75)" fontSize={11} fontWeight={500} fontFamily="JetBrains Mono, monospace">
-          {size?.toLocaleString()}
-        </text>
+        <>
+          <text x={x + 8} y={y + 35} fill="black" fontSize={11} fontWeight={600} fontFamily="JetBrains Mono, monospace" opacity={0.4}>
+            {size?.toLocaleString()}
+          </text>
+          <text x={x + 8} y={y + 34} fill="hsl(0 0% 100% / 0.9)" fontSize={11} fontWeight={600} fontFamily="JetBrains Mono, monospace">
+            {size?.toLocaleString()}
+          </text>
+        </>
       )}
     </g>
   );
