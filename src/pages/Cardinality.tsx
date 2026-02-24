@@ -133,22 +133,28 @@ function TreemapCell(props: any) {
 
   const severity = size > 10_000 ? "critical" : size > 5_000 ? "moderate" : size > 1_000 ? "info" : "healthy";
   const fills: Record<string, string> = {
-    critical: "hsl(var(--severity-critical) / 0.3)",
-    moderate: "hsl(var(--severity-moderate) / 0.3)",
-    info: "hsl(var(--severity-info) / 0.2)",
-    healthy: "hsl(var(--severity-healthy) / 0.15)",
+    critical: "hsl(var(--severity-critical) / 0.55)",
+    moderate: "hsl(var(--severity-moderate) / 0.45)",
+    info: "hsl(var(--severity-info) / 0.35)",
+    healthy: "hsl(var(--severity-healthy) / 0.25)",
+  };
+  const strokes: Record<string, string> = {
+    critical: "hsl(var(--severity-critical) / 0.8)",
+    moderate: "hsl(var(--severity-moderate) / 0.7)",
+    info: "hsl(var(--severity-info) / 0.6)",
+    healthy: "hsl(var(--severity-healthy) / 0.4)",
   };
 
   return (
     <g>
-      <rect x={x} y={y} width={width} height={height} fill={fills[severity]} stroke="hsl(var(--border))" strokeWidth={1} rx={3} />
+      <rect x={x} y={y} width={width} height={height} fill={fills[severity]} stroke={strokes[severity]} strokeWidth={1.5} rx={4} />
       {width > 60 && height > 30 && (
-        <text x={x + 6} y={y + 16} fill="hsl(var(--foreground))" fontSize={11} fontFamily="JetBrains Mono, monospace">
+        <text x={x + 8} y={y + 18} fill="hsl(0 0% 100%)" fontSize={12} fontWeight={600} fontFamily="JetBrains Mono, monospace">
           {name}
         </text>
       )}
       {width > 50 && height > 40 && (
-        <text x={x + 6} y={y + 30} fill="hsl(var(--muted-foreground))" fontSize={10} fontFamily="JetBrains Mono, monospace">
+        <text x={x + 8} y={y + 34} fill="hsl(0 0% 100% / 0.75)" fontSize={11} fontWeight={500} fontFamily="JetBrains Mono, monospace">
           {size?.toLocaleString()}
         </text>
       )}
