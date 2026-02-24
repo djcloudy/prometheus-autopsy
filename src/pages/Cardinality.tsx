@@ -145,16 +145,23 @@ function TreemapCell(props: any) {
     healthy: "hsl(142 50% 40%)",
   };
 
+  const { fullName } = props;
+  const tooltipText = `${fullName || name}\n${size?.toLocaleString()} series`;
+
   return (
     <g>
-      <rect x={x} y={y} width={width} height={height} fill={fills[severity]} stroke={strokes[severity]} strokeWidth={1.5} rx={4} />
+      <rect x={x} y={y} width={width} height={height} fill={fills[severity]} stroke={strokes[severity]} strokeWidth={1.5} rx={4}>
+        <title>{tooltipText}</title>
+      </rect>
       {width > 60 && height > 30 && (
         <>
           <text x={x + 8} y={y + 19} fill="black" fontSize={12} fontWeight={700} fontFamily="JetBrains Mono, monospace" opacity={0.4}>
             {name}
+            <title>{tooltipText}</title>
           </text>
           <text x={x + 8} y={y + 18} fill="white" fontSize={12} fontWeight={700} fontFamily="JetBrains Mono, monospace">
             {name}
+            <title>{tooltipText}</title>
           </text>
         </>
       )}
@@ -162,9 +169,11 @@ function TreemapCell(props: any) {
         <>
           <text x={x + 8} y={y + 35} fill="black" fontSize={11} fontWeight={600} fontFamily="JetBrains Mono, monospace" opacity={0.4}>
             {size?.toLocaleString()}
+            <title>{tooltipText}</title>
           </text>
           <text x={x + 8} y={y + 34} fill="hsl(0 0% 100% / 0.9)" fontSize={11} fontWeight={600} fontFamily="JetBrains Mono, monospace">
             {size?.toLocaleString()}
+            <title>{tooltipText}</title>
           </text>
         </>
       )}
