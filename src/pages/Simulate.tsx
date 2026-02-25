@@ -24,18 +24,36 @@ export default function Simulate() {
   const metrics = tsdb?.seriesCountByMetricName ?? [];
   const labels = tsdb?.labelValueCountByLabelName ?? [];
 
-  const [simulations, setSimulations] = useState<Simulation[]>([]);
+  const [simulations, setSimulations] = useState<Simulation[]>(() => {
+    try {
+      const stored = localStorage.getItem("autopsy-simulations");
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   const [action, setAction] = useState<SimAction>("drop_metric");
   const [target, setTarget] = useState("");
 
+  // Persist simulations to localStorage
+  const updateSimulations = (updater: (prev: Simulation[]) => Simulation[]) => {
+    setSimulations((prev) => {
+      const next = updater(prev);
+      localStorage.setItem("autopsy-simulations", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const addSimulation = () => {
     if (!target.trim()) return;
-    setSimulations((prev) => [...prev, { id: crypto.randomUUID(), action, target: target.trim() }]);
+    updateSimulations((prev) => [...prev, { id: crypto.randomUUID(), action, target: target.trim() }]);
     setTarget("");
   };
 
   const removeSimulation = (id: string) => {
-    setSimulations((prev) => prev.filter((s) => s.id !== id));
+    updateSimulations((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const clearAll = () => {
+    updateSimulations(() => []);
   };
 
   // Estimate impact
@@ -127,8 +145,11 @@ export default function Simulate() {
       {simulations.length > 0 && (
         <>
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Active Simulations</CardTitle>
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={clearAll}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear All
+              </Button>
             </CardHeader>
             <CardContent className="space-y-2">
               {simulations.map((sim) => (
