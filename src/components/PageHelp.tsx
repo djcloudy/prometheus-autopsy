@@ -313,8 +313,8 @@ export const exportedHelp = {
   ],
 };
 
-
-  export const recommendationsHelp = {
+export const recommendationsHelp = {
+  title: "Smart Recommendations — Help",
   description: "This page automatically analyzes your TSDB data and generates prioritized, actionable findings. Think of it as an automated SRE review of your Prometheus setup.",
   sections: [
     {
