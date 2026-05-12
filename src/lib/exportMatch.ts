@@ -128,6 +128,76 @@ export function parseExportMatchBlock(text: string): ParseResult {
   return { rules, errors };
 }
 
+/**
+ * Parse the Go-formatted value Prometheus returns for the `export.match` flag at
+ * /api/v1/status/flags. Format example:
+ *   [[__name__=~"kube_pod.*"] [__name__=~"node_.*" __name__!~"node_systemd_unit.*"] [project_id=~"foo"]]
+ * Each inner [...] group is one rule with one or more space-separated matchers.
+ * Returns the equivalent text in `--export.match={...}` form so the standard
+ * parseExportMatchBlock can consume it without special-casing.
+ */
+export function flagValueToRuleText(flagValue: string): string {
+  const s = flagValue.trim();
+  if (!s) return "";
+  // Strip outer [ and ]
+  let body = s;
+  if (body.startsWith("[") && body.endsWith("]")) body = body.slice(1, -1);
+  body = body.trim();
+
+  const groups: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inQuote: '"' | "'" | null = null;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (inQuote) {
+      if (ch === "\\") { i++; continue; }
+      if (ch === inQuote) inQuote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") { inQuote = ch as any; continue; }
+    if (ch === "[") {
+      if (depth === 0) start = i + 1;
+      depth++;
+    } else if (ch === "]") {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        groups.push(body.slice(start, i));
+        start = -1;
+      }
+    }
+  }
+
+  // For each group: matchers are separated by whitespace at depth 0.
+  // Split, respecting quoted values.
+  const lines: string[] = [];
+  for (const g of groups) {
+    const matchers: string[] = [];
+    let buf = "";
+    let q: '"' | "'" | null = null;
+    for (let i = 0; i < g.length; i++) {
+      const ch = g[i];
+      if (q) {
+        buf += ch;
+        if (ch === "\\" && i + 1 < g.length) { buf += g[i + 1]; i++; continue; }
+        if (ch === q) q = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") { q = ch as any; buf += ch; continue; }
+      if (/\s/.test(ch)) {
+        if (buf.trim()) matchers.push(buf.trim());
+        buf = "";
+        continue;
+      }
+      buf += ch;
+    }
+    if (buf.trim()) matchers.push(buf.trim());
+    if (matchers.length === 0) continue;
+    lines.push(`- --export.match={${matchers.join(",")}}`);
+  }
+  return lines.join("\n");
+}
+
 function escapeQuotes(v: string): string {
   return v.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
