@@ -5,11 +5,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { AppContext, type ConnectionState } from "@/lib/store";
+import { AppContext, type ConnectionState, initialConnectionState } from "@/lib/store";
 import Connect from "./pages/Connect";
 import Overview from "./pages/Overview";
 import Cardinality from "./pages/Cardinality";
 import Churn from "./pages/Churn";
+import Exported from "./pages/Exported";
 import Histograms from "./pages/Histograms";
 import Labels from "./pages/Labels";
 import Scrapes from "./pages/Scrapes";
@@ -25,18 +26,10 @@ const App = () => {
     document.documentElement.classList.add("dark");
   }, []);
 
-  const [connection, setConnection] = useState<ConnectionState>({
-    config: null,
-    isConnected: false,
-    tsdbStatus: null,
-    targets: null,
-    promConfig: null,
-    allMetricNames: [],
-    allLabelNames: [],
-  });
+  const [connection, setConnection] = useState<ConnectionState>(initialConnectionState);
 
   const disconnect = () => {
-    setConnection({ config: null, isConnected: false, tsdbStatus: null, targets: null, promConfig: null, allMetricNames: [], allLabelNames: [] });
+    setConnection(initialConnectionState);
   };
 
   return (
