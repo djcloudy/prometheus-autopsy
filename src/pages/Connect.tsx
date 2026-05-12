@@ -48,10 +48,12 @@ export default function Connect() {
         return;
       }
 
-      const [tsdb, targets, promCfg] = await Promise.allSettled([
-        getTSDBStatus(cfg),
+      const [tsdb, targets, promCfg, metricNames, labelNames] = await Promise.allSettled([
+        getTSDBStatus(cfg, 1000),
         getTargets(cfg),
         getConfig(cfg),
+        getLabelValues(cfg, "__name__"),
+        getLabelNames(cfg),
       ]);
 
       saveConnection(cfg);
@@ -61,6 +63,8 @@ export default function Connect() {
         tsdbStatus: tsdb.status === "fulfilled" ? tsdb.value : null,
         targets: targets.status === "fulfilled" ? targets.value : null,
         promConfig: promCfg.status === "fulfilled" ? promCfg.value.yaml : null,
+        allMetricNames: metricNames.status === "fulfilled" ? metricNames.value : [],
+        allLabelNames: labelNames.status === "fulfilled" ? labelNames.value : [],
       });
       navigate("/overview");
     } catch (e: any) {
