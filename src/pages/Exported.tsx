@@ -42,6 +42,8 @@ export default function Exported() {
   const [rawText, setRawText] = useState(connection.exportRulesRaw);
   const [settings, setSettings] = useState<ExportSettings>(connection.exportSettings);
   const [running, setRunning] = useState(false);
+  const [fetchingFlags, setFetchingFlags] = useState(false);
+  const [flagsMessage, setFlagsMessage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
   const totalSeries = connection.tsdbStatus?.headStats?.numSeries ?? 0;
