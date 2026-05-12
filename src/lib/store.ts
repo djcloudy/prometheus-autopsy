@@ -8,6 +8,8 @@ export interface ConnectionState {
   tsdbStatus: TSDBStatus | null;
   targets: TargetInfo | null;
   promConfig: string | null;
+  allMetricNames: string[];
+  allLabelNames: string[];
 }
 
 export interface AppContextType {
