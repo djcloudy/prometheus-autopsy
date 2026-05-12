@@ -18,6 +18,7 @@ import {
   type PrometheusConfig,
 } from "@/lib/prometheus";
 import { CheckCircle2, XCircle, Loader2, Link, Trash2, Skull } from "lucide-react";
+import { loadExportConfig, parseExportMatchBlock } from "@/lib/exportMatch";
 import { PageHelp, connectHelp } from "@/components/PageHelp";
 
 export default function Connect() {
