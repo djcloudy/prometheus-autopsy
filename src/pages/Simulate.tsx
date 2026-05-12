@@ -16,6 +16,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import { queryInstant } from "@/lib/prometheus";
+
 type SimAction = "drop_label" | "drop_bucket" | "increase_interval" | "drop_metric";
 
 interface Simulation {
@@ -23,6 +25,8 @@ interface Simulation {
   action: SimAction;
   target: string;
   param?: string;
+  /** Cached series count fetched from Prometheus when not in TSDB top-N */
+  seriesCount?: number;
 }
 
 export default function Simulate() {
