@@ -359,7 +359,12 @@ export default function Simulate() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Estimated Impact</CardTitle>
-              <CardDescription>Directional estimates based on current TSDB data</CardDescription>
+              <CardDescription>
+                Live counts queried from Prometheus per simulation. Stacked drops are summed and capped at total head series — overlap between simulations isn't deducted, so treat the result as a directional upper bound.
+                {impact.pendingCount > 0 && (
+                  <span className="text-severity-warning"> · {impact.pendingCount} pending…</span>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-6">
