@@ -32,6 +32,9 @@ export default function Simulate() {
   const totalSeries = tsdb?.headStats?.numSeries ?? 0;
   const metrics = tsdb?.seriesCountByMetricName ?? [];
   const labels = tsdb?.labelValueCountByLabelName ?? [];
+  // Full lists from /api/v1/label/__name__/values and /api/v1/labels (not limited to TSDB top-N)
+  const allMetricNames = connection.allMetricNames ?? [];
+  const allLabelNames = connection.allLabelNames ?? [];
 
   const [simulations, setSimulations] = useState<Simulation[]>(() => {
     try {
