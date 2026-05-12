@@ -17,6 +17,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { queryInstant } from "@/lib/prometheus";
+import {
+  unionExpression,
+  estimateMonthlyCost,
+  formatUSD,
+} from "@/lib/exportMatch";
+import { Link as RouterLink } from "react-router-dom";
 
 type SimAction = "drop_label" | "drop_bucket" | "increase_interval" | "drop_metric";
 
@@ -27,10 +33,16 @@ interface Simulation {
   param?: string;
   /** Cached series count fetched from Prometheus when not in TSDB top-N */
   seriesCount?: number;
+  /** Series this drop would remove from the EXPORTED set */
+  exportedSeriesCount?: number;
   /** For drop_label: number of distinct values of this label */
   labelValueCount?: number;
+  /** For drop_label: distinct values of this label within the EXPORTED set */
+  labelValueCountExported?: number;
   /** For drop_label: total series that carry this label */
   labelAffectedSeries?: number;
+  /** For drop_label: series carrying this label within the EXPORTED set */
+  labelAffectedSeriesExported?: number;
   /** True while we're fetching live counts from Prometheus */
   loading?: boolean;
 }
