@@ -8,6 +8,8 @@ export interface ConnectionState {
   tsdbStatus: TSDBStatus | null;
   targets: TargetInfo | null;
   promConfig: string | null;
+  allMetricNames: string[];
+  allLabelNames: string[];
 }
 
 export interface AppContextType {
@@ -17,7 +19,7 @@ export interface AppContextType {
 }
 
 export const AppContext = createContext<AppContextType>({
-  connection: { config: null, isConnected: false, tsdbStatus: null, targets: null, promConfig: null },
+  connection: { config: null, isConnected: false, tsdbStatus: null, targets: null, promConfig: null, allMetricNames: [], allLabelNames: [] },
   setConnection: () => {},
   disconnect: () => {},
 });

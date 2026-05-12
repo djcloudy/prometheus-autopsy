@@ -16,6 +16,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import { queryInstant } from "@/lib/prometheus";
+
 type SimAction = "drop_label" | "drop_bucket" | "increase_interval" | "drop_metric";
 
 interface Simulation {
@@ -23,6 +25,8 @@ interface Simulation {
   action: SimAction;
   target: string;
   param?: string;
+  /** Cached series count fetched from Prometheus when not in TSDB top-N */
+  seriesCount?: number;
 }
 
 export default function Simulate() {
@@ -32,6 +36,9 @@ export default function Simulate() {
   const totalSeries = tsdb?.headStats?.numSeries ?? 0;
   const metrics = tsdb?.seriesCountByMetricName ?? [];
   const labels = tsdb?.labelValueCountByLabelName ?? [];
+  // Full lists from /api/v1/label/__name__/values and /api/v1/labels (not limited to TSDB top-N)
+  const allMetricNames = connection.allMetricNames ?? [];
+  const allLabelNames = connection.allLabelNames ?? [];
 
   const [simulations, setSimulations] = useState<Simulation[]>(() => {
     try {
@@ -44,9 +51,17 @@ export default function Simulate() {
   const [comboOpen, setComboOpen] = useState(false);
 
   const suggestions = useMemo(() => {
-    if (action === "drop_label") return labels.map((l) => l.name);
-    return metrics.map((m) => m.name);
-  }, [action, metrics, labels]);
+    if (action === "drop_label") {
+      // Merge full label list with TSDB top labels, dedupe, sort
+      const set = new Set<string>(allLabelNames);
+      labels.forEach((l) => set.add(l.name));
+      return Array.from(set).sort();
+    }
+    // Drop metric / drop bucket: merge full metric name list with TSDB top metrics
+    const set = new Set<string>(allMetricNames);
+    metrics.forEach((m) => set.add(m.name));
+    return Array.from(set).sort();
+  }, [action, metrics, labels, allMetricNames, allLabelNames]);
 
   // Handle incoming deep-link params from Churn page
   useEffect(() => {
@@ -69,10 +84,28 @@ export default function Simulate() {
     });
   };
 
-  const addSimulation = () => {
-    if (!target.trim()) return;
-    updateSimulations((prev) => [...prev, { id: crypto.randomUUID(), action, target: target.trim() }]);
+  const addSimulation = async () => {
+    const t = target.trim();
+    if (!t) return;
+    const id = crypto.randomUUID();
+    updateSimulations((prev) => [...prev, { id, action, target: t }]);
     setTarget("");
+
+    // For metric-based simulations, if the metric isn't in TSDB top-N, query Prometheus
+    // for an accurate live series count so impact reflects real cardinality.
+    if (!connection.config) return;
+    if (action === "drop_metric" || action === "drop_bucket") {
+      const metricName = action === "drop_bucket" ? `${t}_bucket` : t;
+      const known = metrics.find((m) => m.name === metricName);
+      if (known) return;
+      try {
+        const res = await queryInstant(connection.config, `count({__name__="${metricName}"})`);
+        const val = Number(res?.result?.[0]?.value?.[1]);
+        if (Number.isFinite(val) && val > 0) {
+          updateSimulations((prev) => prev.map((s) => (s.id === id ? { ...s, seriesCount: val } : s)));
+        }
+      } catch { /* ignore — impact will fall back to 0 */ }
+    }
   };
 
   const removeSimulation = (id: string) => {
@@ -91,11 +124,13 @@ export default function Simulate() {
         case "drop_metric": {
           const m = metrics.find((x) => x.name === sim.target);
           if (m) seriesReduction += m.value;
+          else if (sim.seriesCount) seriesReduction += sim.seriesCount;
           break;
         }
         case "drop_bucket": {
           const bucket = metrics.find((x) => x.name === `${sim.target}_bucket`);
           if (bucket) seriesReduction += bucket.value;
+          else if (sim.seriesCount) seriesReduction += sim.seriesCount;
           break;
         }
         case "drop_label": {

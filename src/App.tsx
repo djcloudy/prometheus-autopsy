@@ -31,10 +31,12 @@ const App = () => {
     tsdbStatus: null,
     targets: null,
     promConfig: null,
+    allMetricNames: [],
+    allLabelNames: [],
   });
 
   const disconnect = () => {
-    setConnection({ config: null, isConnected: false, tsdbStatus: null, targets: null, promConfig: null });
+    setConnection({ config: null, isConnected: false, tsdbStatus: null, targets: null, promConfig: null, allMetricNames: [], allLabelNames: [] });
   };
 
   return (

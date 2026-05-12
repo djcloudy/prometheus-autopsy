@@ -63,8 +63,12 @@ async function fetchProm<T>(config: PrometheusConfig, path: string): Promise<T> 
   return json.data;
 }
 
-export async function getTSDBStatus(config: PrometheusConfig): Promise<TSDBStatus> {
-  return fetchProm<TSDBStatus>(config, "/api/v1/status/tsdb");
+export async function getTSDBStatus(config: PrometheusConfig, limit = 500): Promise<TSDBStatus> {
+  return fetchProm<TSDBStatus>(config, `/api/v1/status/tsdb?limit=${limit}`);
+}
+
+export async function getLabelNames(config: PrometheusConfig): Promise<string[]> {
+  return fetchProm<string[]>(config, "/api/v1/labels");
 }
 
 export async function getTargets(config: PrometheusConfig): Promise<TargetInfo> {
