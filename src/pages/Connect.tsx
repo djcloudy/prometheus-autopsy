@@ -50,17 +50,28 @@ export default function Connect() {
         return;
       }
 
-      const [tsdb, targets, promCfg, metricNames, labelNames] = await Promise.allSettled([
+      const [tsdb, targets, promCfg, metricNames, labelNames, flags] = await Promise.allSettled([
         getTSDBStatus(cfg, 1000),
         getTargets(cfg),
         getConfig(cfg),
         getLabelValues(cfg, "__name__"),
         getLabelNames(cfg),
+        getFlags(cfg),
       ]);
 
       saveConnection(cfg);
       const persisted = loadExportConfig(cfg.baseUrl);
-      const parsed = parseExportMatchBlock(persisted.rawText);
+      // If the user hasn't pasted rules yet, auto-populate from the
+      // export.match flag exposed at /api/v1/status/flags.
+      let rawText = persisted.rawText;
+      if (!rawText.trim() && flags.status === "fulfilled") {
+        const flagVal = flags.value?.["export.match"];
+        if (flagVal) {
+          const generated = flagValueToRuleText(flagVal);
+          if (generated) rawText = generated;
+        }
+      }
+      const parsed = parseExportMatchBlock(rawText);
       setConnection({
         config: cfg,
         isConnected: true,
@@ -70,7 +81,7 @@ export default function Connect() {
         allMetricNames: metricNames.status === "fulfilled" ? metricNames.value : [],
         allLabelNames: labelNames.status === "fulfilled" ? labelNames.value : [],
         exportRules: parsed.rules,
-        exportRulesRaw: persisted.rawText,
+        exportRulesRaw: rawText,
         exportSettings: persisted.settings,
       });
       navigate("/overview");
