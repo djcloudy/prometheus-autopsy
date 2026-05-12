@@ -84,10 +84,28 @@ export default function Simulate() {
     });
   };
 
-  const addSimulation = () => {
-    if (!target.trim()) return;
-    updateSimulations((prev) => [...prev, { id: crypto.randomUUID(), action, target: target.trim() }]);
+  const addSimulation = async () => {
+    const t = target.trim();
+    if (!t) return;
+    const id = crypto.randomUUID();
+    updateSimulations((prev) => [...prev, { id, action, target: t }]);
     setTarget("");
+
+    // For metric-based simulations, if the metric isn't in TSDB top-N, query Prometheus
+    // for an accurate live series count so impact reflects real cardinality.
+    if (!connection.config) return;
+    if (action === "drop_metric" || action === "drop_bucket") {
+      const metricName = action === "drop_bucket" ? `${t}_bucket` : t;
+      const known = metrics.find((m) => m.name === metricName);
+      if (known) return;
+      try {
+        const res = await queryInstant(connection.config, `count({__name__="${metricName}"})`);
+        const val = Number(res?.result?.[0]?.value?.[1]);
+        if (Number.isFinite(val) && val > 0) {
+          updateSimulations((prev) => prev.map((s) => (s.id === id ? { ...s, seriesCount: val } : s)));
+        }
+      } catch { /* ignore — impact will fall back to 0 */ }
+    }
   };
 
   const removeSimulation = (id: string) => {
