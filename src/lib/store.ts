@@ -19,7 +19,7 @@ export interface AppContextType {
 }
 
 export const AppContext = createContext<AppContextType>({
-  connection: { config: null, isConnected: false, tsdbStatus: null, targets: null, promConfig: null },
+  connection: { config: null, isConnected: false, tsdbStatus: null, targets: null, promConfig: null, allMetricNames: [], allLabelNames: [] },
   setConnection: () => {},
   disconnect: () => {},
 });
