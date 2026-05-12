@@ -324,20 +324,35 @@ export default function Simulate() {
               </AlertDialog>
             </CardHeader>
             <CardContent className="space-y-2">
-              {simulations.map((sim) => (
-                <div key={sim.id} className="flex items-center justify-between p-3 rounded-md border border-border text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase text-muted-foreground font-medium">
-                      {sim.action.replace("_", " ")}
-                    </span>
-                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-mono">{sim.target}</span>
+              {simulations.map((sim) => {
+                const detail =
+                  sim.action === "drop_label"
+                    ? sim.labelAffectedSeries != null && sim.labelValueCount != null
+                      ? `${sim.labelAffectedSeries.toLocaleString()} series · ${sim.labelValueCount.toLocaleString()} values`
+                      : null
+                    : sim.seriesCount != null
+                    ? `${sim.seriesCount.toLocaleString()} series`
+                    : null;
+                return (
+                  <div key={sim.id} className="flex items-center justify-between p-3 rounded-md border border-border text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs uppercase text-muted-foreground font-medium">
+                        {sim.action.replace("_", " ")}
+                      </span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="font-mono truncate">{sim.target}</span>
+                      {sim.loading ? (
+                        <span className="text-xs text-muted-foreground italic ml-2">measuring…</span>
+                      ) : detail ? (
+                        <span className="text-xs text-muted-foreground ml-2">({detail})</span>
+                      ) : null}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSimulation(sim.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSimulation(sim.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
