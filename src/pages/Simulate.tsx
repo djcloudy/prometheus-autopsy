@@ -27,6 +27,12 @@ interface Simulation {
   param?: string;
   /** Cached series count fetched from Prometheus when not in TSDB top-N */
   seriesCount?: number;
+  /** For drop_label: number of distinct values of this label */
+  labelValueCount?: number;
+  /** For drop_label: total series that carry this label */
+  labelAffectedSeries?: number;
+  /** True while we're fetching live counts from Prometheus */
+  loading?: boolean;
 }
 
 export default function Simulate() {
