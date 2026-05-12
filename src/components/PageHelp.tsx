@@ -282,6 +282,37 @@ export const simulateHelp = {
   ],
 };
 
+export const exportedHelp = {
+  title: "Exported Metrics — Help",
+  description: "Google Managed Prometheus (GMP) lets you ship a subset of your local Prometheus series to Google Cloud for long-term storage. You pay per sample ingested, so knowing which metrics are exported is critical for cost control.",
+  sections: [
+    {
+      title: "Export rules",
+      content: "Paste your --export.match flags directly from your Prometheus container args. Each line should look like:\n\n  - --export.match={__name__=~\"kube_pod.*\"}\n  - --export.match={project_id=~\"pr-inf-telemetry\"}\n\nLines without --export.match= are ignored. Comments starting with # are skipped. Quoted and unquoted values are both supported. Parse errors are shown inline and don't stop the rest of the rules from working.",
+    },
+    {
+      title: "How matching works (OR semantics)",
+      content: "GMP exports a series if it matches ANY of the rules — the same as the Prometheus flag behavior. So a series matching one or more rules is counted exactly once toward the exported total (we use PromQL `or` which deduplicates by label set).",
+    },
+    {
+      title: "Cost settings",
+      content: "GMP charges per million samples ingested. The defaults assume:\n• $0.06 per million samples (GMP public pricing — verify against your contract)\n• 30s scrape interval (override if your global interval differs)\n• 1.0 samples per series per scrape (counters/gauges = 1; histograms inflate this — bump to 1.5–3 if you ship many histograms)\n\nMonthly cost = exported_series × multiplier ÷ interval × 86400 × 30 × ($/M ÷ 1,000,000)",
+    },
+    {
+      title: "Run analysis",
+      content: "Counts are queried live against Prometheus and can be heavy with broad regexes (e.g. .*cpu.*). Click 'Run analysis' to execute, and re-run after changing rules. Results are cached in the page until you refresh or change rules.",
+    },
+    {
+      title: "Top exported metrics",
+      content: "For each rule, we show the metrics with the most matched series. Click a metric to deep-link into Simulate with 'Drop Metric' pre-filled — useful for modeling how much you'd save by stopping a metric from being exported.",
+    },
+    {
+      title: "Tied into Simulate",
+      content: "Once rules are configured, every simulation on the Simulate page also computes its delta against the exported set, plus an estimated monthly $ savings. The aggregate impact card shows the total exported reduction and combined savings.",
+    },
+  ],
+};
+
 export const recommendationsHelp = {
   title: "Smart Recommendations — Help",
   description: "This page automatically analyzes your TSDB data and generates prioritized, actionable findings. Think of it as an automated SRE review of your Prometheus setup.",

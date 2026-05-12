@@ -18,6 +18,7 @@ import {
   type PrometheusConfig,
 } from "@/lib/prometheus";
 import { CheckCircle2, XCircle, Loader2, Link, Trash2, Skull } from "lucide-react";
+import { loadExportConfig, parseExportMatchBlock } from "@/lib/exportMatch";
 import { PageHelp, connectHelp } from "@/components/PageHelp";
 
 export default function Connect() {
@@ -57,6 +58,8 @@ export default function Connect() {
       ]);
 
       saveConnection(cfg);
+      const persisted = loadExportConfig(cfg.baseUrl);
+      const parsed = parseExportMatchBlock(persisted.rawText);
       setConnection({
         config: cfg,
         isConnected: true,
@@ -65,6 +68,9 @@ export default function Connect() {
         promConfig: promCfg.status === "fulfilled" ? promCfg.value.yaml : null,
         allMetricNames: metricNames.status === "fulfilled" ? metricNames.value : [],
         allLabelNames: labelNames.status === "fulfilled" ? labelNames.value : [],
+        exportRules: parsed.rules,
+        exportRulesRaw: persisted.rawText,
+        exportSettings: persisted.settings,
       });
       navigate("/overview");
     } catch (e: any) {
