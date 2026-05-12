@@ -93,24 +93,56 @@ export default function Simulate() {
   const addSimulation = async () => {
     const t = target.trim();
     if (!t) return;
+    // Dedupe: don't add an identical (action, target) twice
+    if (simulations.some((s) => s.action === action && s.target === t)) {
+      setTarget("");
+      return;
+    }
     const id = crypto.randomUUID();
-    updateSimulations((prev) => [...prev, { id, action, target: t }]);
+    updateSimulations((prev) => [...prev, { id, action, target: t, loading: true }]);
     setTarget("");
 
-    // For metric-based simulations, if the metric isn't in TSDB top-N, query Prometheus
-    // for an accurate live series count so impact reflects real cardinality.
-    if (!connection.config) return;
-    if (action === "drop_metric" || action === "drop_bucket") {
-      const metricName = action === "drop_bucket" ? `${t}_bucket` : t;
-      const known = metrics.find((m) => m.name === metricName);
-      if (known) return;
-      try {
+    if (!connection.config) {
+      updateSimulations((prev) => prev.map((s) => (s.id === id ? { ...s, loading: false } : s)));
+      return;
+    }
+
+    try {
+      if (action === "drop_metric" || action === "drop_bucket") {
+        // Live, accurate series count for this metric
+        const metricName = action === "drop_bucket" ? `${t}_bucket` : t;
         const res = await queryInstant(connection.config, `count({__name__="${metricName}"})`);
         const val = Number(res?.result?.[0]?.value?.[1]);
-        if (Number.isFinite(val) && val > 0) {
-          updateSimulations((prev) => prev.map((s) => (s.id === id ? { ...s, seriesCount: val } : s)));
-        }
-      } catch { /* ignore — impact will fall back to 0 */ }
+        updateSimulations((prev) =>
+          prev.map((s) =>
+            s.id === id ? { ...s, seriesCount: Number.isFinite(val) ? val : 0, loading: false } : s
+          )
+        );
+      } else if (action === "drop_label") {
+        // affectedSeries = series carrying this label; valueCount = distinct values seen
+        const [affectedRes, valuesRes] = await Promise.all([
+          queryInstant(connection.config, `count({__name__!="",${t}!=""})`),
+          queryInstant(connection.config, `count(count by (${t}) ({__name__!="",${t}!=""}))`),
+        ]);
+        const affected = Number(affectedRes?.result?.[0]?.value?.[1]);
+        const values = Number(valuesRes?.result?.[0]?.value?.[1]);
+        updateSimulations((prev) =>
+          prev.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  labelAffectedSeries: Number.isFinite(affected) ? affected : 0,
+                  labelValueCount: Number.isFinite(values) ? values : 0,
+                  loading: false,
+                }
+              : s
+          )
+        );
+      } else {
+        updateSimulations((prev) => prev.map((s) => (s.id === id ? { ...s, loading: false } : s)));
+      }
+    } catch {
+      updateSimulations((prev) => prev.map((s) => (s.id === id ? { ...s, loading: false } : s)));
     }
   };
 
@@ -122,39 +154,61 @@ export default function Simulate() {
     updateSimulations(() => []);
   };
 
-  // Estimate impact
+  // Estimate impact — series reduction is computed per simulation, then summed and
+  // clamped to never exceed total series (we cannot compute exact overlap between
+  // simultaneous drops, so the result is a directional upper bound).
   const impact = useMemo(() => {
     let seriesReduction = 0;
+    let pendingCount = 0;
     for (const sim of simulations) {
+      if (sim.loading) pendingCount++;
       switch (sim.action) {
         case "drop_metric": {
-          const m = metrics.find((x) => x.name === sim.target);
-          if (m) seriesReduction += m.value;
-          else if (sim.seriesCount) seriesReduction += sim.seriesCount;
+          // Prefer live count fetched at add-time; fall back to TSDB top-N value
+          if (typeof sim.seriesCount === "number") seriesReduction += sim.seriesCount;
+          else {
+            const m = metrics.find((x) => x.name === sim.target);
+            if (m) seriesReduction += m.value;
+          }
           break;
         }
         case "drop_bucket": {
-          const bucket = metrics.find((x) => x.name === `${sim.target}_bucket`);
-          if (bucket) seriesReduction += bucket.value;
-          else if (sim.seriesCount) seriesReduction += sim.seriesCount;
+          if (typeof sim.seriesCount === "number") seriesReduction += sim.seriesCount;
+          else {
+            const bucket = metrics.find((x) => x.name === `${sim.target}_bucket`);
+            if (bucket) seriesReduction += bucket.value;
+          }
           break;
         }
         case "drop_label": {
-          const l = labels.find((x) => x.name === sim.target);
-          if (l && l.value > 1) {
-            // Rough estimate: dropping a label reduces series by (1 - 1/values) for metrics using it
-            seriesReduction += Math.round(totalSeries * 0.1 * (1 - 1 / l.value));
+          // Dropping a label collapses series that share all other labels.
+          // Reduction ≈ affectedSeries × (1 − 1/valueCount).
+          // Fall back to TSDB labelValueCountByLabelName when live data is missing.
+          const affected = sim.labelAffectedSeries ?? totalSeries;
+          const values =
+            sim.labelValueCount ??
+            labels.find((x) => x.name === sim.target)?.value ??
+            0;
+          if (values > 1 && affected > 0) {
+            seriesReduction += Math.round(affected * (1 - 1 / values));
           }
           break;
         }
         case "increase_interval": {
-          // Doesn't reduce series, reduces samples/sec
+          // Doesn't reduce series count — only sample rate.
           break;
         }
       }
     }
-    const pctReduction = totalSeries > 0 ? Math.min(99, Math.round((seriesReduction / totalSeries) * 100)) : 0;
-    return { seriesReduction, pctReduction, remainingSeries: Math.max(0, totalSeries - seriesReduction) };
+    seriesReduction = Math.min(seriesReduction, totalSeries);
+    const pctReduction =
+      totalSeries > 0 ? Math.round((seriesReduction / totalSeries) * 100) : 0;
+    return {
+      seriesReduction,
+      pctReduction,
+      remainingSeries: Math.max(0, totalSeries - seriesReduction),
+      pendingCount,
+    };
   }, [simulations, metrics, labels, totalSeries]);
 
   if (!connection.isConnected) return <Navigate to="/" replace />;
