@@ -58,6 +58,8 @@ export default function Connect() {
       ]);
 
       saveConnection(cfg);
+      const persisted = loadExportConfig(cfg.baseUrl);
+      const parsed = parseExportMatchBlock(persisted.rawText);
       setConnection({
         config: cfg,
         isConnected: true,
@@ -66,6 +68,9 @@ export default function Connect() {
         promConfig: promCfg.status === "fulfilled" ? promCfg.value.yaml : null,
         allMetricNames: metricNames.status === "fulfilled" ? metricNames.value : [],
         allLabelNames: labelNames.status === "fulfilled" ? labelNames.value : [],
+        exportRules: parsed.rules,
+        exportRulesRaw: persisted.rawText,
+        exportSettings: persisted.settings,
       });
       navigate("/overview");
     } catch (e: any) {
