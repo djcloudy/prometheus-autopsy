@@ -420,9 +420,13 @@ export default function Simulate() {
                     : sim.seriesCount != null
                     ? `${sim.seriesCount.toLocaleString()} series`
                     : null;
+                const exportedDelta = perSimExported(sim);
+                const exportedCost = exportConfigured
+                  ? estimateMonthlyCost(exportedDelta, exportSettings)
+                  : 0;
                 return (
-                  <div key={sim.id} className="flex items-center justify-between p-3 rounded-md border border-border text-sm">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div key={sim.id} className="flex items-center justify-between p-3 rounded-md border border-border text-sm gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className="text-xs uppercase text-muted-foreground font-medium">
                         {sim.action.replace("_", " ")}
                       </span>
@@ -434,6 +438,11 @@ export default function Simulate() {
                         <span className="text-xs text-muted-foreground ml-2">({detail})</span>
                       ) : null}
                     </div>
+                    {exportConfigured && !sim.loading && (
+                      <span className="text-xs text-primary font-mono shrink-0 whitespace-nowrap">
+                        −{exportedDelta.toLocaleString()} exp · ~{formatUSD(exportedCost)}/mo
+                      </span>
+                    )}
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSimulation(sim.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -450,6 +459,15 @@ export default function Simulate() {
                 Live counts queried from Prometheus per simulation. Stacked drops are summed and capped at total head series — overlap between simulations isn't deducted, so treat the result as a directional upper bound.
                 {impact.pendingCount > 0 && (
                   <span className="text-severity-warning"> · {impact.pendingCount} pending…</span>
+                )}
+                {!exportConfigured && (
+                  <>
+                    {" · "}
+                    <RouterLink to="/exported" className="underline text-primary">
+                      Configure GMP export rules
+                    </RouterLink>{" "}
+                    to also see exported impact and $ savings.
+                  </>
                 )}
               </CardDescription>
             </CardHeader>
@@ -474,8 +492,29 @@ export default function Simulate() {
                   </p>
                 </div>
               </div>
+              {exportConfigured && (
+                <div className="grid grid-cols-2 gap-6 mt-6 pt-6 border-t border-border">
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase">
+                      Exported Series Removed
+                    </span>
+                    <p className="text-2xl font-bold font-mono text-primary">
+                      −{impact.exportedReduction.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase">
+                      Est. Monthly Savings (GMP)
+                    </span>
+                    <p className="text-2xl font-bold font-mono text-severity-warning">
+                      {formatUSD(impact.monthlySavings)}
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
+
         </>
       )}
     </div>
