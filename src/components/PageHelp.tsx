@@ -287,8 +287,8 @@ export const exportedHelp = {
   description: "Google Managed Prometheus (GMP) lets you ship a subset of your local Prometheus series to Google Cloud for long-term storage. You pay per sample ingested, so knowing which metrics are exported is critical for cost control.",
   sections: [
     {
-      title: "Export rules",
-      content: "Paste your --export.match flags directly from your Prometheus container args. Each line should look like:\n\n  - --export.match={__name__=~\"kube_pod.*\"}\n  - --export.match={project_id=~\"pr-inf-telemetry\"}\n\nLines without --export.match= are ignored. Comments starting with # are skipped. Quoted and unquoted values are both supported. Parse errors are shown inline and don't stop the rest of the rules from working.",
+      title: "Where rules come from",
+      content: "On connect, we fetch /api/v1/status/flags and auto-load the export.match flag (the same flag your Prometheus container is running with). You can also click 'Fetch from /flags' anytime to refresh, or paste/edit rules manually:\n\n  - --export.match={__name__=~\"kube_pod.*\"}\n  - --export.match={project_id=~\"pr-inf-telemetry\"}\n\nLines without --export.match= are ignored. Comments starting with # are skipped. Quoted and unquoted values are both supported. Parse errors are shown inline and don't stop the rest of the rules from working.",
     },
     {
       title: "How matching works (OR semantics)",

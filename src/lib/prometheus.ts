@@ -79,6 +79,10 @@ export async function getConfig(config: PrometheusConfig): Promise<{ yaml: strin
   return fetchProm<{ yaml: string }>(config, "/api/v1/status/config");
 }
 
+export async function getFlags(config: PrometheusConfig): Promise<Record<string, string>> {
+  return fetchProm<Record<string, string>>(config, "/api/v1/status/flags");
+}
+
 export async function queryInstant(config: PrometheusConfig, query: string): Promise<any> {
   const encoded = encodeURIComponent(query);
   return fetchProm<any>(config, `/api/v1/query?query=${encoded}`);

@@ -7,9 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Cloud, AlertTriangle, Loader2, Play, ArrowRight } from "lucide-react";
+import { Cloud, AlertTriangle, Loader2, Play, ArrowRight, Download } from "lucide-react";
 import { PageHelp, exportedHelp } from "@/components/PageHelp";
-import { queryInstant } from "@/lib/prometheus";
+import { queryInstant, getFlags } from "@/lib/prometheus";
 import {
   parseExportMatchBlock,
   ruleToSelector,
@@ -17,6 +17,7 @@ import {
   saveExportConfig,
   estimateMonthlyCost,
   formatUSD,
+  flagValueToRuleText,
   type ExportRule,
   type ExportSettings,
 } from "@/lib/exportMatch";
@@ -41,6 +42,8 @@ export default function Exported() {
   const [rawText, setRawText] = useState(connection.exportRulesRaw);
   const [settings, setSettings] = useState<ExportSettings>(connection.exportSettings);
   const [running, setRunning] = useState(false);
+  const [fetchingFlags, setFetchingFlags] = useState(false);
+  const [flagsMessage, setFlagsMessage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
   const totalSeries = connection.tsdbStatus?.headStats?.numSeries ?? 0;
@@ -118,6 +121,31 @@ export default function Exported() {
     navigate(`/simulate?action=drop_metric&target=${encodeURIComponent(name)}`);
   };
 
+  const fetchFromFlags = async () => {
+    if (!connection.config) return;
+    setFetchingFlags(true);
+    setFlagsMessage(null);
+    try {
+      const flags = await getFlags(connection.config);
+      const flagVal = flags?.["export.match"];
+      if (!flagVal) {
+        setFlagsMessage("No export.match flag found at /api/v1/status/flags.");
+        return;
+      }
+      const generated = flagValueToRuleText(flagVal);
+      if (!generated) {
+        setFlagsMessage("Found export.match but couldn't parse any rules from it.");
+        return;
+      }
+      setRawText(generated);
+      setFlagsMessage(`Loaded ${generated.split("\n").length} rule(s) from /flags.`);
+    } catch (e: any) {
+      setFlagsMessage(`Failed to fetch /flags: ${e?.message || "unknown error"}`);
+    } finally {
+      setFetchingFlags(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -127,19 +155,29 @@ export default function Exported() {
             Exported Metrics (GMP)
           </h1>
           <p className="text-muted-foreground text-sm">
-            Paste your <code className="text-xs bg-muted px-1 py-0.5 rounded">--export.match</code>{" "}
-            flags to see how many series ship to Google Managed Prometheus and what they cost.
+            Auto-loaded from <code className="text-xs bg-muted px-1 py-0.5 rounded">/api/v1/status/flags</code> on connect.
+            Edit or paste <code className="text-xs bg-muted px-1 py-0.5 rounded">--export.match</code> rules below to override.
           </p>
         </div>
         <PageHelp {...exportedHelp} />
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Export Rules</CardTitle>
-          <CardDescription>
-            One rule per line. Matched with OR — a series is exported if it matches any rule.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-2">
+          <div>
+            <CardTitle className="text-lg">Export Rules</CardTitle>
+            <CardDescription>
+              One rule per line. Matched with OR — a series is exported if it matches any rule.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchFromFlags} disabled={fetchingFlags}>
+            {fetchingFlags ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Fetch from /flags
+          </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea
@@ -149,6 +187,9 @@ export default function Exported() {
             rows={8}
             className="font-mono text-xs"
           />
+          {flagsMessage && (
+            <p className="text-xs text-muted-foreground">{flagsMessage}</p>
+          )}
           <div className="flex flex-wrap gap-2">
             {parsed.rules.map((r, i) => (
               <Badge key={i} variant="outline" className="font-mono text-xs">
