@@ -124,11 +124,13 @@ export default function Simulate() {
         case "drop_metric": {
           const m = metrics.find((x) => x.name === sim.target);
           if (m) seriesReduction += m.value;
+          else if (sim.seriesCount) seriesReduction += sim.seriesCount;
           break;
         }
         case "drop_bucket": {
           const bucket = metrics.find((x) => x.name === `${sim.target}_bucket`);
           if (bucket) seriesReduction += bucket.value;
+          else if (sim.seriesCount) seriesReduction += sim.seriesCount;
           break;
         }
         case "drop_label": {
