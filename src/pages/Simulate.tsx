@@ -216,17 +216,39 @@ export default function Simulate() {
     updateSimulations(() => []);
   };
 
+  const exportRules = connection.exportRules ?? [];
+  const exportSettings = connection.exportSettings;
+  const exportConfigured = exportRules.length > 0;
+
+  // Per-simulation exported reduction (used both in row UI and aggregate).
+  const perSimExported = (sim: Simulation): number => {
+    if (!exportConfigured) return 0;
+    switch (sim.action) {
+      case "drop_metric":
+      case "drop_bucket":
+        return sim.exportedSeriesCount ?? 0;
+      case "drop_label": {
+        const aff = sim.labelAffectedSeriesExported ?? 0;
+        const vals = sim.labelValueCountExported ?? 0;
+        if (vals > 1 && aff > 0) return Math.round(aff * (1 - 1 / vals));
+        return 0;
+      }
+      default:
+        return 0;
+    }
+  };
+
   // Estimate impact — series reduction is computed per simulation, then summed and
   // clamped to never exceed total series (we cannot compute exact overlap between
   // simultaneous drops, so the result is a directional upper bound).
   const impact = useMemo(() => {
     let seriesReduction = 0;
+    let exportedReduction = 0;
     let pendingCount = 0;
     for (const sim of simulations) {
       if (sim.loading) pendingCount++;
       switch (sim.action) {
         case "drop_metric": {
-          // Prefer live count fetched at add-time; fall back to TSDB top-N value
           if (typeof sim.seriesCount === "number") seriesReduction += sim.seriesCount;
           else {
             const m = metrics.find((x) => x.name === sim.target);
@@ -243,9 +265,6 @@ export default function Simulate() {
           break;
         }
         case "drop_label": {
-          // Dropping a label collapses series that share all other labels.
-          // Reduction ≈ affectedSeries × (1 − 1/valueCount).
-          // Fall back to TSDB labelValueCountByLabelName when live data is missing.
           const affected = sim.labelAffectedSeries ?? totalSeries;
           const values =
             sim.labelValueCount ??
@@ -256,22 +275,28 @@ export default function Simulate() {
           }
           break;
         }
-        case "increase_interval": {
-          // Doesn't reduce series count — only sample rate.
+        case "increase_interval":
           break;
-        }
       }
+      exportedReduction += perSimExported(sim);
     }
     seriesReduction = Math.min(seriesReduction, totalSeries);
     const pctReduction =
       totalSeries > 0 ? Math.round((seriesReduction / totalSeries) * 100) : 0;
+    const monthlySavings = exportConfigured
+      ? estimateMonthlyCost(exportedReduction, exportSettings)
+      : 0;
     return {
       seriesReduction,
       pctReduction,
       remainingSeries: Math.max(0, totalSeries - seriesReduction),
+      exportedReduction,
+      monthlySavings,
       pendingCount,
     };
-  }, [simulations, metrics, labels, totalSeries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulations, metrics, labels, totalSeries, exportConfigured, exportSettings]);
+
 
   if (!connection.isConnected) return <Navigate to="/" replace />;
 
