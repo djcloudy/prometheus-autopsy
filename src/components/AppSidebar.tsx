@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  Cloud,
   Flame,
   GitBranch,
   Layers,
@@ -33,6 +34,7 @@ const navItems = [
   { title: "Histograms", url: "/histograms", icon: Layers },
   { title: "Labels", url: "/labels", icon: GitBranch },
   { title: "Scrapes", url: "/scrapes", icon: Timer },
+  { title: "Exported", url: "/exported", icon: Cloud },
   { title: "Simulate", url: "/simulate", icon: PlayCircle },
   { title: "Recommendations", url: "/recommendations", icon: Shield },
 ];
