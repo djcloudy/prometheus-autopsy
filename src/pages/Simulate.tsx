@@ -119,25 +119,65 @@ export default function Simulate() {
       return;
     }
 
+    const exportRules = connection.exportRules ?? [];
+    const exportUnion = exportRules.length > 0 ? unionExpression(exportRules) : null;
+
     try {
       if (action === "drop_metric" || action === "drop_bucket") {
         // Live, accurate series count for this metric
         const metricName = action === "drop_bucket" ? `${t}_bucket` : t;
-        const res = await queryInstant(connection.config, `count({__name__="${metricName}"})`);
-        const val = Number(res?.result?.[0]?.value?.[1]);
+        const baseSel = `{__name__="${metricName}"}`;
+        const queries: Promise<any>[] = [
+          queryInstant(connection.config, `count(${baseSel})`),
+        ];
+        if (exportUnion) {
+          queries.push(
+            queryInstant(connection.config, `count((${baseSel}) and (${exportUnion}))`)
+          );
+        }
+        const results = await Promise.all(queries);
+        const val = Number(results[0]?.result?.[0]?.value?.[1]);
+        const exportedVal = exportUnion
+          ? Number(results[1]?.result?.[0]?.value?.[1])
+          : undefined;
         updateSimulations((prev) =>
           prev.map((s) =>
-            s.id === id ? { ...s, seriesCount: Number.isFinite(val) ? val : 0, loading: false } : s
+            s.id === id
+              ? {
+                  ...s,
+                  seriesCount: Number.isFinite(val) ? val : 0,
+                  exportedSeriesCount: Number.isFinite(exportedVal as number)
+                    ? (exportedVal as number)
+                    : exportUnion
+                    ? 0
+                    : undefined,
+                  loading: false,
+                }
+              : s
           )
         );
       } else if (action === "drop_label") {
-        // affectedSeries = series carrying this label; valueCount = distinct values seen
-        const [affectedRes, valuesRes] = await Promise.all([
-          queryInstant(connection.config, `count({__name__!="",${t}!=""})`),
-          queryInstant(connection.config, `count(count by (${t}) ({__name__!="",${t}!=""}))`),
-        ]);
-        const affected = Number(affectedRes?.result?.[0]?.value?.[1]);
-        const values = Number(valuesRes?.result?.[0]?.value?.[1]);
+        const baseSel = `{__name__!="",${t}!=""}`;
+        const queries: Promise<any>[] = [
+          queryInstant(connection.config, `count(${baseSel})`),
+          queryInstant(connection.config, `count(count by (${t}) (${baseSel}))`),
+        ];
+        if (exportUnion) {
+          queries.push(
+            queryInstant(connection.config, `count((${baseSel}) and (${exportUnion}))`)
+          );
+          queries.push(
+            queryInstant(
+              connection.config,
+              `count(count by (${t}) ((${baseSel}) and (${exportUnion})))`
+            )
+          );
+        }
+        const results = await Promise.all(queries);
+        const affected = Number(results[0]?.result?.[0]?.value?.[1]);
+        const values = Number(results[1]?.result?.[0]?.value?.[1]);
+        const affectedExp = exportUnion ? Number(results[2]?.result?.[0]?.value?.[1]) : undefined;
+        const valuesExp = exportUnion ? Number(results[3]?.result?.[0]?.value?.[1]) : undefined;
         updateSimulations((prev) =>
           prev.map((s) =>
             s.id === id
@@ -145,6 +185,16 @@ export default function Simulate() {
                   ...s,
                   labelAffectedSeries: Number.isFinite(affected) ? affected : 0,
                   labelValueCount: Number.isFinite(values) ? values : 0,
+                  labelAffectedSeriesExported: exportUnion
+                    ? Number.isFinite(affectedExp as number)
+                      ? (affectedExp as number)
+                      : 0
+                    : undefined,
+                  labelValueCountExported: exportUnion
+                    ? Number.isFinite(valuesExp as number)
+                      ? (valuesExp as number)
+                      : 0
+                    : undefined,
                   loading: false,
                 }
               : s
