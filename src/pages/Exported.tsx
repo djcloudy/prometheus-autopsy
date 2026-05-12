@@ -7,9 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Cloud, AlertTriangle, Loader2, Play, ArrowRight } from "lucide-react";
+import { Cloud, AlertTriangle, Loader2, Play, ArrowRight, Download } from "lucide-react";
 import { PageHelp, exportedHelp } from "@/components/PageHelp";
-import { queryInstant } from "@/lib/prometheus";
+import { queryInstant, getFlags } from "@/lib/prometheus";
 import {
   parseExportMatchBlock,
   ruleToSelector,
@@ -17,6 +17,7 @@ import {
   saveExportConfig,
   estimateMonthlyCost,
   formatUSD,
+  flagValueToRuleText,
   type ExportRule,
   type ExportSettings,
 } from "@/lib/exportMatch";
