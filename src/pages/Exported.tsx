@@ -187,6 +187,9 @@ export default function Exported() {
             rows={8}
             className="font-mono text-xs"
           />
+          {flagsMessage && (
+            <p className="text-xs text-muted-foreground">{flagsMessage}</p>
+          )}
           <div className="flex flex-wrap gap-2">
             {parsed.rules.map((r, i) => (
               <Badge key={i} variant="outline" className="font-mono text-xs">
