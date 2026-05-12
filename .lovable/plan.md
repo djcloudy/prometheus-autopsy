@@ -1,92 +1,107 @@
 
-# Prometheus Blacklight — Implementation Plan
+## Exported Metrics view (GMP)
 
-## Overview
-A forensic performance analyzer for Prometheus instances. Dark-mode-first, precision-engineered UI that connects directly to Prometheus APIs and surfaces cardinality, churn, histogram abuse, and scrape inefficiency — with an interactive simulation engine.
+A new page that lets you paste your `--export.match={...}` flags, evaluates which series Prometheus would export to Google Managed Prometheus, and surfaces both share-of-total and estimated monthly cost. The Simulate page gains an exported-impact column per row and an aggregate exported card.
 
-## Design System
-- **Dark mode default** with a hacker-meets-Linear aesthetic — deep charcoal backgrounds, sharp typography, high-contrast data
-- **Severity color system**: Red (critical/high cardinality), Amber (moderate), Green (healthy), Purple (histogram abuse), Orange (churn risk)
-- **Sidebar navigation** with icon + label for each analysis module
-- **Data-dense layouts**: sortable tables, expandable drill-downs, copyable code snippets
+### 1. New page: `/exported` — "Exported Metrics"
 
-## Connection Setup
-- **Endpoint configuration page**: Enter Prometheus base URL + optional basic auth credentials
-- **Direct browser API calls** to Prometheus (assumes CORS-friendly or same-network access)
-- **Connection health check** on connect — validates `/api/v1/status/tsdb`, `/api/v1/targets`, `/api/v1/status/config`
-- Credentials stored in session/local storage only
+Sidebar entry between Scrapes and Simulate (icon: `Cloud` or `Upload`).
 
-## Feature 1: Overview Dashboard
-- Pull TSDB status, target summary, and config on connect
-- Display: total series count, sample ingestion rate, active targets, scrape intervals in use
-- **Health summary cards** with severity-coded scores for cardinality, churn, histograms, and scrape efficiency
-- Quick-link cards to each analysis module with top finding previews
+Sections:
 
-## Feature 2: High Cardinality Analysis
-- Query top metrics by series count, top labels by cardinality, top label values
-- **Cardinality Multiplier Tree**: Interactive expandable tree showing how labels multiply series (e.g., `http_client_duration_bucket × service_name(3) × url(248) × ...= 80,640`)
-- **Treemap visualization** of metric family impact using Recharts
-- Per-job and per-namespace breakdown tables with sorting and filtering
-- Severity badges on each metric
+1. **Export rules** — textarea where the user pastes their flag block, e.g.
+   ```
+   - --export.match={__name__=~"kube_pod.*"}
+   - --export.match={project_id=~"pr-inf-telemetry"}
+   ```
+   Parsed into matchers; combined with **OR** (GMP default). Saved per-connection in localStorage. Each parsed rule rendered as a chip with delete + parse-error display.
 
-## Feature 3: Histogram Abuse Detector
-- Auto-detect `_bucket` metrics with excessive dimensions or bucket counts
-- **Histogram Risk Score** per metric with severity rating
-- Show estimated ingestion savings if `_bucket` is dropped (keep `_sum`/`_count`)
-- Flag high-cardinality labels applied to histograms
-- Copyable `metricRelabelings` YAML to drop problematic buckets
+2. **Cost settings** — small form: `$ per million samples ingested` (default `0.06`, GMP public price), `scrape interval (s)` (default pulled from `promConfig` global, fallback 30). Saved alongside rules.
 
-## Feature 4: Label Churn & Explosion Detection
-- Detect dynamic/unbounded labels matching patterns: `url`, `id`, `uuid`, `path`, `session`, `pod`, `pid`
-- **Churn Risk Index** per label
-- Show label value counts and flag unbounded growth
-- Suggest `labeldrop` rules or OTel processor configs
-- Copyable remediation snippets
+3. **Summary cards**:
+   - Total active series (from TSDB head)
+   - Exported series (live count via PromQL — see below)
+   - % exported
+   - Estimated samples/sec = exported_series / scrape_interval
+   - Estimated $/month = samples/sec × 86400 × 30 × ($/M / 1e6)
 
-## Feature 5: Scrape Efficiency Analyzer
-- Analyze `scrape_duration_seconds`, `scrape_samples_post_metric_relabeling`, `scrape_series_added`
-- Detect: targets scraping too fast, high scrape duration ratios, duplicate scraping
-- **Scrape Optimization Score** per job
-- Recommended interval adjustments with estimated resource savings
-- Table with all targets, sortable by efficiency metrics
+4. **Top exported metrics table** — for each rule, show matched series count and top metric names. Click a metric → deep-link to Simulate with `drop_metric` prefilled.
 
-## Feature 6: "What If" Simulation Engine
-- Interactive tool to simulate dropping a label, dropping `_bucket`, increasing scrape interval, or removing a metric family
-- Estimate: % series reduction, % samples/sec reduction, directional WAL/TSDB impact
-- Before/after comparison view
-- Stack multiple simulations to see cumulative impact
+5. **Top non-exported high-cardinality metrics** — pulled from TSDB top-N minus what the rules match. Useful for "this is huge AND we don't even ship it — drop it."
 
-## Feature 7: Smart Diagnostics & Recommendations
-- Rules engine that runs across all analysis areas and produces a prioritized findings list
-- Each finding: Severity badge, description of why it matters, estimated impact, suggested fix
-- Copyable YAML/PromQL snippets for each recommendation
-- Filterable by severity and category
+### 2. Evaluation strategy (live, accurate)
 
-## Feature 8: Performance Impact Estimator
-- Estimate current resource footprint: samples/sec, CPU cost proxy, memory usage estimate, TSDB growth rate
-- Based on series count × scrape interval × label multiplicity
-- Show on overview and as context within each analysis view
+For each parsed rule, build a PromQL series count using the rule's matchers:
 
-## Data Persistence
-- Save recent analyses, endpoint configs, and simulation results to **browser local storage**
-- Quick re-connect to previously analyzed endpoints
-- No backend database required
+- `--export.match={__name__=~"kube_pod.*"}` → `count({__name__=~"kube_pod.*"})`
+- `--export.match={project_id=~"pr-inf-telemetry"}` → `count({project_id=~"pr-inf-telemetry"})`
+- Combined exported total via OR using `or` operator on aggregates is wrong (would double-count). Instead: run one `count(...)` per rule for the per-rule breakdown, and one combined `count({...} or {...} or ...)` query for the unique total. (Prom `or` on instant vectors deduplicates by label set, so `count({a} or {b})` returns the union series count.)
+- For top exported metrics per rule: `topk(20, count by (__name__) ({matchers}))`.
 
-## Navigation Structure
-Sidebar with sections:
-1. **Connect** — endpoint setup
-2. **Overview** — health dashboard
-3. **Cardinality** — high cardinality analysis
-4. **Histograms** — histogram abuse detection
-5. **Labels** — churn & explosion detection
-6. **Scrapes** — scrape efficiency
-7. **Simulate** — what-if engine
-8. **Recommendations** — aggregated findings
+All queries gated behind a "Run analysis" button (Deep Scan-style) since wide regexes can be expensive. Cache results in component state until rules change.
 
-## Technical Approach
-- React + TypeScript + Tailwind (dark mode)
-- Recharts for treemaps, heatmaps, and charts
-- Direct fetch calls to Prometheus HTTP API
-- PromQL queries built and executed client-side
-- Local storage for persistence
-- No backend required for V1
+### 3. Simulate page integration
+
+Extend `Simulation` with:
+- `exportedSeriesCount?: number` — measured at add-time using the active export rules (if configured).
+- For `drop_metric`: `count({__name__="X"} and ({rule1} or {rule2} ...))`.
+- For `drop_label`: `count({L!="",__name__!=""} and ({rules}))` and value count within exported set.
+
+Per-row UI: new "Exported delta" line showing `−N exported series (~$X/mo)`.
+
+Aggregate impact card gets two new lines:
+- `Exported series reduction: −N (Y% of exported)`
+- `Estimated monthly savings: $Z`
+
+If no export rules configured, hide the exported columns and show a one-line "Configure export rules in Exported Metrics →" link.
+
+### 4. Shared module: `src/lib/exportMatch.ts`
+
+```text
+parseExportMatchBlock(text) -> { rules: Rule[], errors: ParseError[] }
+Rule = { raw: string, matchers: Matcher[] }
+Matcher = { label: string, op: '='|'!='|'=~'|'!~', value: string }
+
+ruleToSelector(rule) -> string         // "{__name__=~\"kube_pod.*\"}"
+unionSelector(rules) -> string          // "({r1}) or ({r2}) or ..."
+intersectWithSelector(seriesSelector, rules) -> string
+```
+
+Parser handles:
+- Lines starting with `- --export.match=` or `--export.match=` (strip leading dash/whitespace).
+- Selector content `{label OP "value"[, label OP "value"...]}` — values may be quoted or bare.
+- Skips blank lines and comments.
+- Returns line-level errors so the UI can flag bad rules without dropping good ones.
+
+### 5. Persistence
+
+`src/lib/store.ts` ConnectionState gains:
+```text
+exportRules: Rule[]
+exportSettings: { pricePerMillionSamples: number; scrapeIntervalSec: number }
+```
+Stored per-baseUrl in localStorage under `prometheus-autopsy-export-${baseUrl}`. Loaded on connect, written on change.
+
+### 6. Help content
+
+Add `exportedHelp` to `PageHelp.tsx` covering: what GMP export.match does, OR vs AND semantics, why % matters for cost, how cost is calculated (with the formula), and caveats (samples-per-scrape ≈ 1 for counters/gauges; histograms/summaries inflate it — note this in fine print and offer a "samples per series multiplier" advanced setting, default 1.0).
+
+### 7. Files
+
+New:
+- `src/pages/Exported.tsx`
+- `src/lib/exportMatch.ts`
+
+Edited:
+- `src/App.tsx` — register `/exported` route; extend ConnectionState init/disconnect.
+- `src/components/AppSidebar.tsx` — add nav entry.
+- `src/components/PageHelp.tsx` — add `exportedHelp`; extend `simulateHelp` to mention exported impact.
+- `src/lib/store.ts` — extend ConnectionState type.
+- `src/pages/Connect.tsx` — load persisted export rules/settings on connect.
+- `src/pages/Simulate.tsx` — measure exported deltas, render per-row line + aggregate card lines, link to Exported page when unconfigured.
+
+### Out of scope (call out, don't build)
+
+- Parsing Prometheus YAML config to auto-extract export.match — deferred; paste-only for v1.
+- Per-target sample rate measurement (would need `scrape_samples_scraped` aggregation) — using interval-based estimate with a multiplier knob instead.
+- Multi-region GMP pricing tiers — single price input for now.
