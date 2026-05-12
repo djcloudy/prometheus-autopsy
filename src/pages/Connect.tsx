@@ -10,6 +10,8 @@ import {
   getTSDBStatus,
   getTargets,
   getConfig,
+  getLabelNames,
+  getLabelValues,
   getSavedConnections,
   saveConnection,
   removeConnection,
