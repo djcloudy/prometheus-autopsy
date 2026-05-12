@@ -48,6 +48,7 @@ const App = () => {
                 <Route path="/histograms" element={<Histograms />} />
                 <Route path="/labels" element={<Labels />} />
                 <Route path="/scrapes" element={<Scrapes />} />
+                <Route path="/exported" element={<Exported />} />
                 <Route path="/simulate" element={<Simulate />} />
                 <Route path="/recommendations" element={<Recommendations />} />
                 <Route path="*" element={<NotFound />} />
