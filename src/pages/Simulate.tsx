@@ -47,9 +47,17 @@ export default function Simulate() {
   const [comboOpen, setComboOpen] = useState(false);
 
   const suggestions = useMemo(() => {
-    if (action === "drop_label") return labels.map((l) => l.name);
-    return metrics.map((m) => m.name);
-  }, [action, metrics, labels]);
+    if (action === "drop_label") {
+      // Merge full label list with TSDB top labels, dedupe, sort
+      const set = new Set<string>(allLabelNames);
+      labels.forEach((l) => set.add(l.name));
+      return Array.from(set).sort();
+    }
+    // Drop metric / drop bucket: merge full metric name list with TSDB top metrics
+    const set = new Set<string>(allMetricNames);
+    metrics.forEach((m) => set.add(m.name));
+    return Array.from(set).sort();
+  }, [action, metrics, labels, allMetricNames, allLabelNames]);
 
   // Handle incoming deep-link params from Churn page
   useEffect(() => {
